@@ -115,14 +115,6 @@ async def listar_players(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 
-async def listar_players(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    room_id = query.data.split('_')[2]
-    sala = rooms[room_id]
-    players = sala.get_players()
-    player_list = "\n".join(players)
-    await query.message.reply_text(text=f"Jugadores en la sala {room_id}:\n{player_list}", reply_markup=query.message.reply_markup)
-
 
 async def estado_sala(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
