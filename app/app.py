@@ -6,6 +6,7 @@ from telegram.ext import Application, CommandHandler, CallbackQueryHandler, Cont
 
 from config import *
 from Sala import *
+from Player import *
 
 # Seteo de la aplicación
 app = Flask(__name__)
@@ -50,8 +51,10 @@ async def create_room(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if len(context.args) > 0:
         room_id = context.args[0]
         new_sala = Sala(room_id)  # Se crea el objeto sala
-        player_name = update.message.from_user.username
+        user = update.message.from_user
+        player = Player(user.id, user.username, user.first_name)
         rooms[new_sala.get_id()] = new_sala  # Almacena el objeto Sala
+        new_sala.add_player(player)
         await update.message.reply_text(f'Sala {new_sala.get_id()} creada.')
     else:
         await update.message.reply_text('Por favor, proporciona un ID de sala.')
@@ -62,11 +65,11 @@ async def join_room(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if len(context.args) > 0:
         room_id = context.args[0]
         user = update.message.from_user
-        player_name = user.username if user.username else user.first_name
-        if player_name:  # Verificar que player_name no sea None
+        player = Player(user.id, user.username, user.first_name)
+        if player.get_name():  # Verificar que player_name no sea None
             if room_id in rooms:
                 sala = rooms[room_id]
-                sala.add_player(player_name)
+                sala.add_player(player)
                 await update.message.reply_text(f'Te has unido a la sala {room_id}.')
                 
                 # Crear el menú de botones
@@ -75,7 +78,7 @@ async def join_room(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     [InlineKeyboardButton("Estado de la Sala", callback_data=f'estado_sala_{room_id}')]
                 ]
                 # Agregar botón "Run" solo para el creador de la sala
-                if sala.get_players()[0] == player_name:
+                if sala.get_players()[0] == player.get_name():
                     keyboard.append([InlineKeyboardButton("Run", callback_data=f'run_{room_id}')])
                 
                 reply_markup = InlineKeyboardMarkup(keyboard)
@@ -87,20 +90,18 @@ async def join_room(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await update.message.reply_text('Por favor, proporciona un ID de sala.')
 
-
-
 async def list_rooms(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if rooms:
         room_list = "\n".join([f"- {room_id}" for room_id in rooms.keys()])
         if isinstance(update, Update):
             await update.message.reply_text(f"Salas creadas:\n{room_list}")
         else:
-            await update.edit_message_text(f"Salas creadas:\n{room_list}")
+            await update.message.reply_text(f"Salas creadas:\n{room_list}", reply_markup=update.message.reply_markup)
     else:
         if isinstance(update, Update):
             await update.message.reply_text("No hay salas creadas.")
         else:
-            await update.edit_message_text("No hay salas creadas.")
+            await update.message.reply_text("No hay salas creadas.", reply_markup=update.message.reply_markup)
 
 
 
@@ -110,7 +111,17 @@ async def listar_players(update: Update, context: ContextTypes.DEFAULT_TYPE):
     sala = rooms[room_id]
     players = sala.get_players()
     player_list = "\n".join(players)
-    await query.message.reply_text(text=f"Jugadores en la sala {room_id}:\n{player_list}")
+    await query.message.reply_text(text=f"Jugadores en la sala {room_id}:\n{player_list}", reply_markup=query.message.reply_markup)
+
+
+
+async def listar_players(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    room_id = query.data.split('_')[2]
+    sala = rooms[room_id]
+    players = sala.get_players()
+    player_list = "\n".join(players)
+    await query.message.reply_text(text=f"Jugadores en la sala {room_id}:\n{player_list}", reply_markup=query.message.reply_markup)
 
 
 async def estado_sala(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -119,21 +130,25 @@ async def estado_sala(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         sala = rooms[room_id]  # Asegúrate de que esto sea un objeto de la clase Sala
         if sala.get_active():
-            await query.message.reply_text(text=f"Estado de la sala {room_id}: Activo")
+            await query.message.reply_text(text=f"Estado de la sala {room_id}: Activo", reply_markup=query.message.reply_markup)
         else:
-            await query.message.reply_text(text=f"Estado de la sala {room_id}: En preparación")
+            await query.message.reply_text(text=f"Estado de la sala {room_id}: En preparación", reply_markup=query.message.reply_markup)
     except KeyError:
-        await query.message.reply_text(text="La sala no existe.")
+        await query.message.reply_text(text="La sala no existe.", reply_markup=query.message.reply_markup)
     except AttributeError:
-        await query.message.reply_text(text="Error al obtener el estado de la sala.")
+        await query.message.reply_text(text="Error al obtener el estado de la sala.", reply_markup=query.message.reply_markup)
+
 
 
 async def run(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     room_id = query.data.split('_')[1]
-    sala = rooms[room_id]
-    sala.set_active(True)
-    await query.message.reply_text(text=f"El juego en la sala {room_id} ha comenzado", reply_markup=query.message.reply_markup)
+    try:
+        sala = rooms[room_id]
+        sala.set_active(True)  # Activar la sala
+        await query.message.reply_text(text=f"El juego en la sala {room_id} ha comenzado", reply_markup=query.message.reply_markup)
+    except KeyError:
+        await query.message.reply_text(text="La sala no existe.", reply_markup=query.message.reply_markup)
 
 
 

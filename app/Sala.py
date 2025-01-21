@@ -14,9 +14,9 @@ class Sala:
     def set_active(self, active):
         self.active = active
 
-    def add_player(self, player_name):
-        if player_name:  # Verificar que player_name no sea None
-            self.players.append(player_name)
+    def add_player(self, player):
+        if player and player.user_id not in [p.user_id for p in self.players]:  # Verificar que player no sea None y no esté duplicado
+            self.players.append(player)
 
     def get_players(self):
-        return self.players
+        return [player.get_name() for player in self.players]
