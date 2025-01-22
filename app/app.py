@@ -138,7 +138,21 @@ async def run(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         sala = rooms[room_id]
         sala.set_active(True)  # Activar la sala
-        await query.message.reply_text(text=f"El juego en la sala {room_id} ha comenzado", reply_markup=query.message.reply_markup)
+        
+        # Enviar mensaje a todos los jugadores en la sala
+        keyboard_game_options = [
+            [InlineKeyboardButton("Listar Players", callback_data=f'listar_players_{room_id}')],
+            [InlineKeyboardButton("Espiar", callback_data=f'espiar_{room_id}')],
+            [InlineKeyboardButton("Extraer", callback_data=f'extraer_{room_id}')],
+            [InlineKeyboardButton("Ceder", callback_data=f'ceder_{room_id}')],
+            [InlineKeyboardButton("Hibernar", callback_data=f'hibernar_{room_id}')]
+        ]
+        
+        reply_markup_game_options = InlineKeyboardMarkup(keyboard_game_options)
+        
+        for player_id in sala.get_player_ids():
+            await context.bot.send_message(chat_id=player_id, text=f"El juego en la sala {room_id} ha comenzado. Elige una opción:", reply_markup=reply_markup_game_options)
+        
     except KeyError:
         await query.message.reply_text(text="La sala no existe.", reply_markup=query.message.reply_markup)
 

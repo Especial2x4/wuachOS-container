@@ -20,3 +20,7 @@ class Sala:
 
     def get_players(self):
         return [player.get_name() for player in self.players]
+
+    
+    def get_player_ids(self):
+        return [player.user_id for player in self.players]
