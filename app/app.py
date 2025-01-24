@@ -1,3 +1,6 @@
+import asyncio
+import telegram.error
+
 from flask import Flask, render_template
 from flask_socketio import SocketIO
 
@@ -27,6 +30,57 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text('Elige una opción:', reply_markup=reply_markup)
+
+
+# (Otras funciones aquí...)
+
+async def load_bar_interna(query, context, mensaje, player, extractor):
+    """Función interna que realiza la tarea y actualiza la barra de progreso."""
+    total_pasos = 10
+    for i in range(total_pasos + 1):
+        progreso = int(i / total_pasos * 100)
+        barra = "█" * i + "░" * (total_pasos - i)
+        try:
+            await mensaje.edit_text(f"Cargando... [{barra}] {progreso}%")
+        except telegram.error.BadRequest:
+            # Manejar el error si el mensaje ha sido eliminado
+            print(f"Mensaje eliminado por el usuario: {query.from_user.id}")
+            return  # Salir de la función si el mensaje ya no existe
+        await asyncio.sleep(0.5)  # Simula un trabajo que tarda 0.5 segundos por paso (para que sea más rápido)
+    try:
+        await mensaje.edit_text("¡Carga completada! ✅")
+    except telegram.error.BadRequest:
+        print(f"Mensaje eliminado por el usuario: {query.from_user.id}")
+        return
+
+    # Realizar la extracción de fichitas después de completar la carga
+    player.reducir_fichita()
+    extractor.aumentar_fichita()
+    await query.message.reply_text(text=f"Has extraído una fichita de {player.get_name()}. Ahora tienes {extractor.get_fichitas()} fichitas.")
+    await context.bot.send_message(chat_id=player.user_id, text=f"Te han extraído una fichita. Ahora tienes {player.get_fichitas()} fichitas.")
+
+
+async def load_bar(query, context, player, extractor):
+    """Función principal que inicia la tarea en una tarea separada."""
+    try:
+        mensaje = await query.message.reply_text("Cargando... [ ] 0%")
+        # Crear una tarea para ejecutar la función interna de forma concurrente
+        asyncio.create_task(load_bar_interna(query, context, mensaje, player, extractor))
+        await query.message.reply_text("Puedes seguir usando el bot mientras se realiza la carga.")
+    except telegram.error.BadRequest:
+        print(f"Error al enviar el mensaje inicial: {query.from_user.id}")
+        return
+
+async def load_bar(query, context, player, extractor):
+    """Función principal que inicia la tarea en una tarea separada."""
+    try:
+        mensaje = await query.message.reply_text("Cargando... [ ] 0%")
+        # Crear una tarea para ejecutar la función interna de forma concurrente
+        asyncio.create_task(load_bar_interna(query, context, mensaje, player, extractor))
+        await query.message.reply_text("Puedes seguir usando el bot mientras se realiza la carga.")
+    except telegram.error.BadRequest:
+        print(f"Error al enviar el mensaje inicial: {query.from_user.id}")
+        return
 
 
 async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -215,17 +269,15 @@ async def extraer_player(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = query.data.split('_')
     room_id = data[2]  # Asegurarse de que el índice sea correcto
     player_name = data[3]
-    
+
     sala = rooms[room_id]
     player = next((p for p in sala.players if p.get_name() == player_name), None)
     user = update.callback_query.from_user
     extractor = next((p for p in sala.players if p.user_id == user.id), None)
-    
+
     if player and extractor:
-        player.reducir_fichita()
-        extractor.aumentar_fichita()
-        await query.message.reply_text(text=f"Has extraído una fichita de {player_name}. Ahora tienes {extractor.get_fichitas()} fichitas.")
-        await context.bot.send_message(chat_id=player.user_id, text=f"Te han extraído una fichita. Ahora tienes {player.get_fichitas()} fichitas.")
+        # Mostrar la barra de carga antes de la extracción
+        await load_bar(query, context, player, extractor)
     else:
         await query.message.reply_text(text="Jugador no encontrado.")
 
