@@ -148,10 +148,10 @@ async def run(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Enviar mensaje a todos los jugadores en la sala
         keyboard_game_options = [
             [InlineKeyboardButton("Listar Players", callback_data=f'listar_players_{room_id}')],
-            [InlineKeyboardButton("Espiar", callback_data=f'listar_para_espiar_{room_id}')],
-            [InlineKeyboardButton("Extraer", callback_data=f'extraer_{room_id}')],
-            [InlineKeyboardButton("Ceder", callback_data=f'ceder_{room_id}')],
-            [InlineKeyboardButton("Hibernar", callback_data=f'hibernar_{room_id}')]
+            [InlineKeyboardButton("👁️ Espiar", callback_data=f'listar_para_espiar_{room_id}')],
+            [InlineKeyboardButton("⚒️ Extraer", callback_data=f'extraer_{room_id}')],
+            [InlineKeyboardButton("🤝 Ceder", callback_data=f'ceder_{room_id}')],
+            [InlineKeyboardButton("🧊 Hibernar", callback_data=f'hibernar_{room_id}')]
         ]
         
         reply_markup_game_options = InlineKeyboardMarkup(keyboard_game_options)
