@@ -33,9 +33,9 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     if query.data == 'crear_sala':
-        await query.edit_message_text(text="Por favor, proporciona un ID de sala usando /crear_sala <ID>")
+        await query.message.reply_text(text="Por favor, proporciona un ID de sala usando /crear_sala <ID>", reply_markup=query.message.reply_markup)
     elif query.data == 'unirse_sala':
-        await query.edit_message_text(text="Por favor, proporciona un ID de sala usando /unirse_sala <ID>")
+        await query.message.reply_text(text="Por favor, proporciona un ID de sala usando /unirse_sala <ID>", reply_markup=query.message.reply_markup)
     elif query.data == 'listar_salas':
         await list_rooms(query, context)
     elif query.data.startswith('listar_players'):
@@ -44,6 +44,10 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await estado_sala(update, context)
     elif query.data.startswith('run'):
         await run(update, context)
+    elif query.data.startswith('listar_para_espiar'):
+        await listar_para_espiar(update, context)
+    elif query.data.startswith('espiar_player'):
+        await espiar_player(update, context)
 
 
 
@@ -89,6 +93,8 @@ async def join_room(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text('Error: nombre de usuario no válido.')
     else:
         await update.message.reply_text('Por favor, proporciona un ID de sala.')
+
+
 
 async def list_rooms(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if rooms:
@@ -142,7 +148,7 @@ async def run(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Enviar mensaje a todos los jugadores en la sala
         keyboard_game_options = [
             [InlineKeyboardButton("Listar Players", callback_data=f'listar_players_{room_id}')],
-            [InlineKeyboardButton("Espiar", callback_data=f'espiar_{room_id}')],
+            [InlineKeyboardButton("Espiar", callback_data=f'listar_para_espiar_{room_id}')],
             [InlineKeyboardButton("Extraer", callback_data=f'extraer_{room_id}')],
             [InlineKeyboardButton("Ceder", callback_data=f'ceder_{room_id}')],
             [InlineKeyboardButton("Hibernar", callback_data=f'hibernar_{room_id}')]
@@ -155,6 +161,38 @@ async def run(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
     except KeyError:
         await query.message.reply_text(text="La sala no existe.", reply_markup=query.message.reply_markup)
+
+
+
+async def listar_para_espiar(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    room_id = query.data.split('_')[3]  # Esto varia en base a la callback anterior en este caso viene del teclado de run
+    sala = rooms[room_id]
+    players = sala.get_players()
+    print(f"la sala es la {room_id} y la query {query}")
+    keyboard = [[InlineKeyboardButton(player, callback_data=f'espiar_player_{room_id}_{player}')] for player in players]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    await query.message.reply_text(text="Selecciona un jugador para espiar:", reply_markup=reply_markup)
+
+
+
+async def espiar_player(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    data = query.data.split('_')
+    room_id = data[2]  # Asegurarse de que el índice sea correcto
+    player_name = data[3]
+    
+    sala = rooms[room_id]
+    player = next((p for p in sala.players if p.get_name() == player_name), None)
+    
+    if player:
+        informe = player.espiar()
+        await query.message.reply_text(text=informe)
+    else:
+        await query.message.reply_text(text="Jugador no encontrado.")
+
+
 
 
 

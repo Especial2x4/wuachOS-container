@@ -9,3 +9,12 @@ class Player:
 
     def get_name(self):
         return self.username if self.username else self.first_name
+
+    def get_status(self):
+        return "Activo" if self.activo else "Inactivo"
+
+    def get_fichitas(self):
+        return self.fichitas
+
+    def espiar(self):
+        return f"Informe de {self.get_name()}:\nEstado: {self.get_status()}\nFichitas: {self.get_fichitas()}"
