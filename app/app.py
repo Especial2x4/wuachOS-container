@@ -48,6 +48,10 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await listar_para_espiar(update, context)
     elif query.data.startswith('espiar_player'):
         await espiar_player(update, context)
+    elif query.data.startswith('listar_para_extraer'):
+        await listar_para_extraer(update, context)
+    elif query.data.startswith('extraer_player'):
+        await extraer_player(update, context)
 
 
 
@@ -149,7 +153,7 @@ async def run(update: Update, context: ContextTypes.DEFAULT_TYPE):
         keyboard_game_options = [
             [InlineKeyboardButton("Listar Players", callback_data=f'listar_players_{room_id}')],
             [InlineKeyboardButton("👁️ Espiar", callback_data=f'listar_para_espiar_{room_id}')],
-            [InlineKeyboardButton("⚒️ Extraer", callback_data=f'extraer_{room_id}')],
+            [InlineKeyboardButton("⚒️ Extraer", callback_data=f'listar_para_extraer_{room_id}')],
             [InlineKeyboardButton("🤝 Ceder", callback_data=f'ceder_{room_id}')],
             [InlineKeyboardButton("🧊 Hibernar", callback_data=f'hibernar_{room_id}')]
         ]
@@ -194,6 +198,36 @@ async def espiar_player(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 
+async def listar_para_extraer(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    room_id = query.data.split('_')[3]  # Esto varia en base a la callback anterior en este caso viene del teclado de run
+    sala = rooms[room_id]
+    players = sala.get_players()
+    
+    keyboard = [[InlineKeyboardButton(player, callback_data=f'extraer_player_{room_id}_{player}')] for player in players]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    await query.message.reply_text(text="Selecciona un jugador para extraer una fichita:", reply_markup=reply_markup)
+
+
+async def extraer_player(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    data = query.data.split('_')
+    room_id = data[2]  # Asegurarse de que el índice sea correcto
+    player_name = data[3]
+    
+    sala = rooms[room_id]
+    player = next((p for p in sala.players if p.get_name() == player_name), None)
+    user = update.callback_query.from_user
+    extractor = next((p for p in sala.players if p.user_id == user.id), None)
+    
+    if player and extractor:
+        player.reducir_fichita()
+        extractor.aumentar_fichita()
+        await query.message.reply_text(text=f"Has extraído una fichita de {player_name}. Ahora tienes {extractor.get_fichitas()} fichitas.")
+        await context.bot.send_message(chat_id=player.user_id, text=f"Te han extraído una fichita. Ahora tienes {player.get_fichitas()} fichitas.")
+    else:
+        await query.message.reply_text(text="Jugador no encontrado.")
 
 
 

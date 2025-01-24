@@ -18,3 +18,11 @@ class Player:
 
     def espiar(self):
         return f"Informe de {self.get_name()}:\nEstado: {self.get_status()}\nFichitas: {self.get_fichitas()}"
+
+    
+    def reducir_fichita(self):
+        if self.fichitas > 0:
+            self.fichitas -= 1
+
+    def aumentar_fichita(self):
+        self.fichitas += 1
