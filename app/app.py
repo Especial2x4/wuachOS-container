@@ -41,34 +41,48 @@ async def load_bar_interna(query, context, mensaje_extractor, mensaje_player, pl
         progreso = int(i / total_pasos * 100)
         barra = "█" * i + "░" * (total_pasos - i)
         try:
-            await mensaje_extractor.edit_text(f"Cargando... [{barra}] {progreso}%")
-            await mensaje_player.edit_text(f"Cargando... [{barra}] {progreso}%")
+            await mensaje_extractor.edit_text(f"Extrayendo... [{barra}] {progreso}%")
+            await mensaje_player.edit_text(f"Extrayendo... [{barra}] {progreso}%")
         except telegram.error.BadRequest:
             # Manejar el error si el mensaje ha sido eliminado
             print(f"Mensaje eliminado por el usuario: {query.from_user.id}")
             return  # Salir de la función si el mensaje ya no existe
-        await asyncio.sleep(0.5)  # Simula un trabajo que tarda 0.5 segundos por paso (para que sea más rápido)
+        await asyncio.sleep(1)  # Simula un trabajo que tarda 1 segundos por paso (para que sea más rápido)
     try:
-        await mensaje_extractor.edit_text("¡Carga completada! ✅")
-        await mensaje_player.edit_text("¡Carga completada! ✅")
+        await mensaje_extractor.edit_text("¡Extraccion completada! ✅")
+        await mensaje_player.edit_text("¡Extraccion completada! ✅")
     except telegram.error.BadRequest:
         print(f"Mensaje eliminado por el usuario: {query.from_user.id}")
         return
 
     # Realizar la extracción de fichitas después de completar la carga
-    player.reducir_fichita()
-    extractor.aumentar_fichita()
-    await query.message.reply_text(text=f"Has extraído una fichita de {player.get_name()}. Ahora tienes {extractor.get_fichitas()} fichitas.")
-    await context.bot.send_message(chat_id=player.user_id, text=f"Te han extraído una fichita. Ahora tienes {player.get_fichitas()} fichitas.")
+    if player.get_status() != "Activo": # Si el player que es extraido no está activo pierde
+        player.reducir_fichita()
+        extractor.aumentar_fichita()
+        await query.message.reply_text(text=f"Has extraído una fichita de {player.get_name()}. Ahora tienes {extractor.get_fichitas()} fichitas.")
+        await context.bot.send_message(chat_id=player.user_id, text=f"Te han extraído una fichita. Ahora tienes {player.get_fichitas()} fichitas.")
+    
+    if player.get_fichitas() >= extractor.get_fichitas(): # Si extractor tiene igual o menos fichitas que el player atacado, el extractor pierde una fichita
+        extractor.reducir_fichita()
+        player.aumentar_fichita()
+        await context.bot.send_message(chat_id=player.user_id, text=f"Has extraído una fichita de {extractor.get_name()}. Ahora tienes {player.get_fichitas()} fichitas.")
+        await query.message.reply_text(text=f"Te han extraído una fichita. Ahora tienes {extractor.get_fichitas()} fichitas.")
+    else:
+        player.reducir_fichita()
+        extractor.aumentar_fichita()
+        await query.message.reply_text(text=f"Has extraído una fichita de {player.get_name()}. Ahora tienes {extractor.get_fichitas()} fichitas.")
+        await context.bot.send_message(chat_id=player.user_id, text=f"Te han extraído una fichita. Ahora tienes {player.get_fichitas()} fichitas.")
+
+
 
 async def load_bar(query, context, player, extractor):
     """Función principal que inicia la tarea en una tarea separada."""
     try:
-        mensaje_extractor = await query.message.reply_text("Cargando... [ ] 0%")
-        mensaje_player = await context.bot.send_message(chat_id=player.user_id, text="Cargando... [ ] 0%")
+        mensaje_extractor = await query.message.reply_text("Extrayendo... [ ] 0%")
+        mensaje_player = await context.bot.send_message(chat_id=player.user_id, text="Extrayendo... [ ] 0%")
         # Crear una tarea para ejecutar la función interna de forma concurrente
         asyncio.create_task(load_bar_interna(query, context, mensaje_extractor, mensaje_player, player, extractor))
-        await query.message.reply_text("Puedes seguir usando el bot mientras se realiza la carga.")
+        await query.message.reply_text("Podés seguir usando el bot mientras se realiza la extracción.")
     except telegram.error.BadRequest:
         print(f"Error al enviar el mensaje inicial: {query.from_user.id}")
         return
