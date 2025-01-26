@@ -83,6 +83,7 @@ async def load_bar(query, context, player, extractor):
         # Crear una tarea para ejecutar la función interna de forma concurrente
         asyncio.create_task(load_bar_interna(query, context, mensaje_extractor, mensaje_player, player, extractor))
         await query.message.reply_text("Podés seguir usando el bot mientras se realiza la extracción.")
+        await context.bot.send_message(chat_id=player.user_id, text=f"⚠️ {extractor.get_name()} te está tratando de extraer.")
     except telegram.error.BadRequest:
         print(f"Error al enviar el mensaje inicial: {query.from_user.id}")
         return
