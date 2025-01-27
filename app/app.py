@@ -56,22 +56,29 @@ async def load_bar_interna(query, context, mensaje_extractor, mensaje_player, pl
         return
 
     # Realizar la extracción de fichitas después de completar la carga
-    if player.get_status() != "Activo": # Si el player que es extraido no está activo pierde
+    if player.get_status() == "Activo":
+        if player.get_fichitas() >= extractor.get_fichitas(): # Si extractor tiene igual o menos fichitas que el player atacado, el extractor pierde una fichita
+            extractor.reducir_fichita()
+            player.aumentar_fichita()
+            await context.bot.send_message(chat_id=player.user_id, text=f"Has extraído una fichita de {extractor.get_name()}. Ahora tienes {player.get_fichitas()} fichitas.")
+            await query.message.reply_text(text=f"Te han extraído una fichita. Ahora tienes {extractor.get_fichitas()} fichitas.")
+        else:
+            player.reducir_fichita()
+            extractor.aumentar_fichita()
+            await query.message.reply_text(text=f"Has extraído una fichita de {player.get_name()}. Ahora tienes {extractor.get_fichitas()} fichitas.")
+            await context.bot.send_message(chat_id=player.user_id, text=f"Te han extraído una fichita. Ahora tienes {player.get_fichitas()} fichitas.")
+    else:
+        # Si el player atacado no está activo, siempre pierde
         player.reducir_fichita()
         extractor.aumentar_fichita()
         await query.message.reply_text(text=f"Has extraído una fichita de {player.get_name()}. Ahora tienes {extractor.get_fichitas()} fichitas.")
         await context.bot.send_message(chat_id=player.user_id, text=f"Te han extraído una fichita. Ahora tienes {player.get_fichitas()} fichitas.")
     
-    if player.get_fichitas() >= extractor.get_fichitas(): # Si extractor tiene igual o menos fichitas que el player atacado, el extractor pierde una fichita
-        extractor.reducir_fichita()
-        player.aumentar_fichita()
-        await context.bot.send_message(chat_id=player.user_id, text=f"Has extraído una fichita de {extractor.get_name()}. Ahora tienes {player.get_fichitas()} fichitas.")
-        await query.message.reply_text(text=f"Te han extraído una fichita. Ahora tienes {extractor.get_fichitas()} fichitas.")
-    else:
-        player.reducir_fichita()
-        extractor.aumentar_fichita()
-        await query.message.reply_text(text=f"Has extraído una fichita de {player.get_name()}. Ahora tienes {extractor.get_fichitas()} fichitas.")
-        await context.bot.send_message(chat_id=player.user_id, text=f"Te han extraído una fichita. Ahora tienes {player.get_fichitas()} fichitas.")
+
+    
+        
+    
+    
 
 
 
@@ -116,6 +123,8 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await listar_para_ceder(update, context)
     elif query.data.startswith('ceder_player'):
         await ceder_player(update, context)
+    elif query.data.startswith('hibernar'):
+        await hibernar(update, context)
 
 
 
@@ -321,6 +330,28 @@ async def ceder_player(update: Update, context: ContextTypes.DEFAULT_TYPE):
         player.aumentar_fichita()
         await query.message.reply_text(text=f"Has cedido una fichita a {player.get_name()}. Ahora tienes {cedector.get_fichitas()} fichitas.")
         await context.bot.send_message(chat_id=player.user_id, text=f"{cedector.get_name()} Te ha cedido una fichita. Ahora tienes {player.get_fichitas()} fichitas.")
+    else:
+        await query.message.reply_text(text="Jugador no encontrado.")
+
+
+async def hibernar(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    data = query.data.split('_')
+    room_id = data[1]  # Asegurarse de que el índice sea correcto
+    #player_name = data[3]
+
+    sala = rooms[room_id]
+    #player = next((p for p in sala.players if p.get_name() == player_name), None)
+    user = update.callback_query.from_user
+    usuario_id = next((p for p in sala.players if p.user_id == user.id), None)
+
+    if usuario_id:
+        if usuario_id.get_status() == "Activo":
+            usuario_id.hibernar()
+            await query.message.reply_text(text=f"Ahora estás Hibernando")
+        else:
+            await query.message.reply_text(text=f"Ya estás Hibernando")
+            
     else:
         await query.message.reply_text(text="Jugador no encontrado.")
 

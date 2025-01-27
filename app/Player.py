@@ -11,7 +11,7 @@ class Player:
         return self.username if self.username else self.first_name
 
     def get_status(self):
-        return "Activo" if self.activo else "Inactivo"
+        return "Activo" if self.activo else "Hibernando"
 
     def get_fichitas(self):
         return self.fichitas
@@ -26,3 +26,7 @@ class Player:
 
     def aumentar_fichita(self):
         self.fichitas += 1
+
+    
+    def hibernar(self):
+        self.activo = False
