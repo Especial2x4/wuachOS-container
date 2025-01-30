@@ -5,7 +5,7 @@ from flask import Flask, render_template
 from flask_socketio import SocketIO
 
 from telegram import Update, Bot, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
+from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, ContextTypes, filters
 
 from config import *
 from Sala import *
@@ -22,6 +22,7 @@ rooms = {}
 
 # FUNCIONES ----------------------------------------------------------------------------------------------------------------
 
+# Comando start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("Crear Sala", callback_data='crear_sala')],
@@ -30,6 +31,81 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text('Elige una opción:', reply_markup=reply_markup)
+
+# Comando testo (versión interactiva)
+async def testo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.message.from_user
+    args = context.args
+
+    # Buscar la sala activa del jugador
+    sala = None
+    for room in rooms.values():
+        if room.get_active() and any(p.user_id == user.id for p in room.players):
+            sala = room
+            break
+
+    if not sala:
+        await update.message.reply_text("❌ Debes estar en una sala **activa** para usar este comando.")
+        return
+
+    # Guardar targets en el contexto
+    context.user_data[TESTO_TARGETS] = args if args else ["all"]
+    
+    # Solicitar mensaje
+    if args:
+        await update.message.reply_text(f"✍️ Escribe el mensaje que enviarás a: {', '.join(args)}")
+    else:
+        await update.message.reply_text("✍️ Escribe el mensaje que enviarás a **todos los jugadores**:")
+
+    # Indicar que esperamos el mensaje
+    context.user_data[TESTO_MESSAGE] = True
+
+
+# Manejador de mensaje de texto
+async def handle_testo_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not context.user_data.get(TESTO_MESSAGE):
+        return  # Ignorar mensajes no relacionados
+
+    user = update.message.from_user
+    message_text = update.message.text
+    targets = context.user_data.get(TESTO_TARGETS, ["all"])
+
+    # Buscar sala activa
+    sala = None
+    for room in rooms.values():
+        if room.get_active() and any(p.user_id == user.id for p in room.players):
+            sala = room
+            break
+
+    if not sala:
+        await update.message.reply_text("❌ Sala no encontrada.")
+        return
+
+    # Determinar destinatarios
+    if targets == ["all"]:
+        recipients = sala.players
+    else:
+        recipients = [p for p in sala.players if p.get_name() in targets]
+        invalid = set(targets) - {p.get_name() for p in recipients}
+        if invalid:
+            await update.message.reply_text(f"❌ Jugadores no válidos: {', '.join(invalid)}")
+            return
+
+    # Enviar mensajes
+    for player in recipients:
+        try:
+            await context.bot.send_message(
+                chat_id=player.user_id,
+                text=f"📨 Mensaje de **{user.first_name}**:\n\n{message_text}"
+            )
+        except telegram.error.BadRequest:
+            print(f"Error al enviar a {player.get_name()}")
+
+    await update.message.reply_text("✅ Mensaje(s) enviado(s)")
+    
+    # Limpiar estado
+    context.user_data.pop(TESTO_MESSAGE, None)
+    context.user_data.pop(TESTO_TARGETS, None)
 
 
 # (Otras funciones aquí...)
@@ -363,6 +439,8 @@ application.add_handler(CallbackQueryHandler(button))
 application.add_handler(CommandHandler('crear_sala', create_room))
 application.add_handler(CommandHandler('unirse_sala', join_room))
 application.add_handler(CommandHandler('listar_salas', list_rooms))
+application.add_handler(CommandHandler("testo", testo))
+application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_testo_message))
 
 
 # ROUTES ---------------------------------------------------------------------------------------------------------------------
