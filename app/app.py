@@ -108,6 +108,40 @@ async def handle_testo_message(update: Update, context: ContextTypes.DEFAULT_TYP
     context.user_data.pop(TESTO_TARGETS, None)
 
 
+# Comando menu
+async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.message.from_user
+
+    # Buscar la sala activa del jugador
+    sala = None
+    for room in rooms.values():
+        if room.get_active() and any(p.user_id == user.id for p in room.players):
+            sala = room
+            break
+
+    if not sala:
+        await update.message.reply_text("❌ Debes estar en una sala **activa** para usar este comando.")
+        return
+
+    # Crear el menú de botones (igual que en la función run)
+    keyboard_game_options = [
+        [InlineKeyboardButton("Listar Players", callback_data=f'listar_players_{sala.get_id()}')],
+        [InlineKeyboardButton("👁️ Espiar", callback_data=f'listar_para_espiar_{sala.get_id()}')],
+        [InlineKeyboardButton("⚒️ Extraer", callback_data=f'listar_para_extraer_{sala.get_id()}')],
+        [InlineKeyboardButton("🤝 Ceder", callback_data=f'listar_para_ceder_{sala.get_id()}')],
+        [InlineKeyboardButton("🧊 Hibernar", callback_data=f'hibernar_{sala.get_id()}')]
+    ]
+
+    reply_markup_game_options = InlineKeyboardMarkup(keyboard_game_options)
+
+    # Enviar el menú al usuario
+    await update.message.reply_text(
+        "Menú principal del juego. Elige una opción:",
+        reply_markup=reply_markup_game_options
+    )
+
+
+
 # (Otras funciones aquí...)
 
 async def load_bar_interna(query, context, mensaje_extractor, mensaje_player, player, extractor):
@@ -441,6 +475,7 @@ application.add_handler(CommandHandler('unirse_sala', join_room))
 application.add_handler(CommandHandler('listar_salas', list_rooms))
 application.add_handler(CommandHandler("testo", testo))
 application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_testo_message))
+application.add_handler(CommandHandler("menu", menu))
 
 
 # ROUTES ---------------------------------------------------------------------------------------------------------------------
